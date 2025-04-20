@@ -1878,9 +1878,7 @@ return (
                                     {conceptAnalysis.concepts.map((concept, idx) => (
                                       <span 
                                         key={idx}
-                                        className={`inline-block px-2 py-1 rounded text-xs ${
-                                          concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
-                                          concept.level ===
+                                        className={`inline-block px-2 py-1 rounded text-xs $
                                           concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
                                           concept.level === 6 ? 'bg-blue-100 text-blue-800' :
                                           'bg-yellow-100 text-yellow-800'
