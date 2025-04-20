@@ -294,7 +294,74 @@ const App = () => {
       
       return { score, level, keywords: matchedKeywords };
     };
-
+    // Analysis function for Strand 3 (Variables)
+    const analyzeStrand3 = (text, experimentChoice) => {
+      if (!text) return { score: 0, keywords: [] };
+      
+      // Convert text to lowercase for case-insensitive matching
+      const content = text.toLowerCase();
+      
+      // Define keywords relevant to Variables quality levels based on experiment type
+      const keywordGroups = [
+        // Level 3-4 keywords - basic variable identification
+        { 
+          words: ['independent variable', 'dependent variable', 'control variable', 'IV', 'DV', 'CV', 'manipulate', 'measure'],
+          level: 'level3',
+          weight: 1,
+          color: 'yellow' 
+        },
+        // Level 6 keywords - measurement and control methods
+        { 
+          words: ['range', 'values', 'measured', 'measuring', 'method', 'trials', 'constant', 'control', 'kept constant'],
+          level: 'level6',
+          weight: 2,
+          color: 'blue'
+        },
+        // Level 8 keywords - detailed methodology and precision - experiment specific
+        { 
+          words: experimentChoice === 'distance' 
+            ? ['precise', 'accurately', 'verified', 'specifically', 'controlled', 'fixed position', 'digital', 'environmental factors']
+            : experimentChoice === 'magnets' 
+              ? ['precise', 'accurately', 'verified', 'alignment', 'stack', 'identical magnets', 'holding device', 'environmental factors']
+              : ['precise', 'accurately', 'verified', 'temperature control', 'specific values', 'thermometer', 'timing', 'environmental factors'],
+          level: 'level8',
+          weight: 3,
+          color: 'green'
+        }
+      ];
+      
+      // Match keywords in text
+      const matchedKeywords = [];
+      let score = 0;
+      
+      keywordGroups.forEach(group => {
+        group.words.forEach(word => {
+          if (content.includes(word.toLowerCase())) {
+            // If the keyword is found, add it to our matches
+            matchedKeywords.push({
+              word: word,
+              level: group.level,
+              weight: group.weight,
+              color: group.color
+            });
+            score += group.weight;
+          }
+        });
+      });
+      
+      // Consider text length and structure
+      if (text.length > 150) score += 1;
+      if (text.length > 300) score += 2;
+      
+      // Check for variable structure (IV, DV, CV sections)
+      const hasStructure = /independent variable.*dependent variable.*control variable/is.test(content);
+      if (hasStructure) score += 3;
+      
+      // Calculate approximate level based on score
+      const level = Math.min(8, Math.max(0, Math.floor(score / 4)));
+      
+      return { score, level, keywords: matchedKeywords };
+    };
     // Concept coverage analysis for Strand 2 (Hypothesis)
     const analyzeHypothesisConcepts = (text, experimentType) => {
       if (!text || text.length < 20) return { score: 0, concepts: [] };
@@ -398,7 +465,115 @@ const App = () => {
         }
       };
     };
-
+    // Concept coverage analysis for Strand 3 (Variables)
+    const analyzeVariablesConcepts = (text, experimentType) => {
+      if (!text || text.length < 20) return { score: 0, concepts: [] };
+      
+      const content = text.toLowerCase();
+      
+      // Define key concepts that should be present in a quality variables section
+      const keyConcepts = {
+        distance: [
+          // Level 3-4 concepts
+          { name: "IV Identification", pattern: /independent variable.*distance|distance.*independent variable/i, level: 4 },
+          { name: "DV Identification", pattern: /dependent variable.*strength|strength.*dependent variable/i, level: 4 },
+          { name: "CV Identification", pattern: /control variable|controlled variable|constant/i, level: 4 },
+          
+          // Level 6 concepts
+          { name: "IV Range", pattern: /(range|between).*(cm|centimeter|distance)/i, level: 6 },
+          { name: "IV Manipulation", pattern: /(manipulat|vari|chang|adjust).*(distance|ruler|meter)/i, level: 6 },
+          { name: "DV Measurement", pattern: /(measure|count|determin).*(paper clip|strength|attraction)/i, level: 6 },
+          { name: "Multiple Trials", pattern: /(trial|repeat|average)/i, level: 6 },
+          
+          // Level 8 concepts
+          { name: "Precise IV Control", pattern: /(precise|accurate|exact).*(measurement|position|distance)/i, level: 8 },
+          { name: "Detailed DV Method", pattern: /(digital|camera|record|verif|exact).*(attract|measure|clip)/i, level: 8 },
+          { name: "CV Control Methods", pattern: /(same|identical|standard|fixed|control).*(magnet|paper clip|environment)/i, level: 8 },
+          { name: "Error Reduction", pattern: /(reduce|minimize|prevent).*(error|variation|inconsistency)/i, level: 8 }
+        ],
+        magnets: [
+          // Level 3-4 concepts
+          { name: "IV Identification", pattern: /independent variable.*number of magnet|number of magnet.*independent variable/i, level: 4 },
+          { name: "DV Identification", pattern: /dependent variable.*strength|strength.*dependent variable/i, level: 4 },
+          { name: "CV Identification", pattern: /control variable|controlled variable|constant/i, level: 4 },
+          
+          // Level 6 concepts
+          { name: "IV Range", pattern: /(range|between).*(1 to 5|number of magnet|stack)/i, level: 6 },
+          { name: "IV Manipulation", pattern: /(manipulat|vari|chang|adjust).*(number|stack|add)/i, level: 6 },
+          { name: "DV Measurement", pattern: /(measure|count|determin).*(paper clip|strength|attraction)/i, level: 6 },
+          { name: "Multiple Trials", pattern: /(trial|repeat|average)/i, level: 6 },
+          
+          // Level 8 concepts
+          { name: "Precise IV Control", pattern: /(alignment|guide|device|identical).*(stack|arrange|orientation)/i, level: 8 },
+          { name: "Detailed DV Method", pattern: /(chain|formation|arrangement|consistent).*(measure|clip|attract)/i, level: 8 },
+          { name: "CV Control Methods", pattern: /(same|identical|standard|fixed|control).*(magnet|paper clip|environment)/i, level: 8 },
+          { name: "Error Reduction", pattern: /(reduce|minimize|prevent).*(error|variation|inconsistency)/i, level: 8 }
+        ],
+        temperature: [
+          // Level 3-4 concepts
+          { name: "IV Identification", pattern: /independent variable.*temperature|temperature.*independent variable/i, level: 4 },
+          { name: "DV Identification", pattern: /dependent variable.*strength|strength.*dependent variable/i, level: 4 },
+          { name: "CV Identification", pattern: /control variable|controlled variable|constant/i, level: 4 },
+          
+          // Level 6 concepts
+          { name: "IV Range", pattern: /(range|between).*(°C|degree|temperature)/i, level: 6 },
+          { name: "IV Manipulation", pattern: /(manipulat|vari|chang|adjust|control).*(temperature|heat|cool)/i, level: 6 },
+          { name: "DV Measurement", pattern: /(measure|count|determin).*(paper clip|strength|attraction)/i, level: 6 },
+          { name: "Multiple Trials", pattern: /(trial|repeat|average)/i, level: 6 },
+          
+          // Level 8 concepts
+          { name: "Precise IV Control", pattern: /(thermometer|precise|accurate|water bath).*(temperature|degree|celsius)/i, level: 8 },
+          { name: "Detailed DV Method", pattern: /(chain|formation|arrangement|consistent|quickly).*(measure|clip|attract)/i, level: 8 },
+          { name: "CV Control Methods", pattern: /(same|identical|standard|fixed|control).*(magnet|paper clip|environment)/i, level: 8 },
+          { name: "Timing Considerations", pattern: /(time|quickly|immediately|rapid).*(measure|remove|change)/i, level: 8 }
+        ]
+      };
+      
+      // Get the right concept set for the experiment
+      const conceptSet = keyConcepts[experimentType] || keyConcepts.distance;
+      
+      // Check for each concept
+      const detectedConcepts = [];
+      let level4Count = 0;
+      let level6Count = 0;
+      let level8Count = 0;
+      
+      conceptSet.forEach(concept => {
+        if (concept.pattern.test(content)) {
+          detectedConcepts.push(concept);
+          if (concept.level === 4) level4Count++;
+          if (concept.level === 6) level6Count++;
+          if (concept.level === 8) level8Count++;
+        }
+      });
+      
+      // Calculate a score based on concept coverage
+      let score = 0;
+      
+      // Level 3-4 basic elements (variable identification)
+      if (level4Count >= 1) {
+        score = 3;
+        if (level4Count >= 2) score = 4;
+      }
+      
+      // Level 6 elements (ranges, measurements, controls)
+      if (level4Count >= 2 && level6Count >= 1) score = 5;
+      if (level4Count >= 2 && level6Count >= 2) score = 6;
+      
+      // Level 8 elements (precise control and methods)
+      if (level4Count >= 2 && level6Count >= 2 && level8Count >= 1) score = 7;
+      if (level4Count >= 3 && level6Count >= 3 && level8Count >= 2) score = 8;
+      
+      return { 
+        score, 
+        concepts: detectedConcepts,
+        conceptCounts: {
+          level4: level4Count,
+          level6: level6Count,
+          level8: level8Count
+        }
+      };
+    };
    
 
     // Code to be added to handleInputChange for Strand 2
@@ -1174,490 +1349,640 @@ const App = () => {
     }
   
     // Render main application screen
-    return (
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        <header className="bg-blue-600 text-white p-4 shadow-md">
-          <div className="flex justify-between items-center max-w-6xl mx-auto">
-            <h1 className="text-2xl font-bold">Scientific Lab Report Guide: MYP Criteria B</h1>
+   // Render main application screen
+return (
+  <div className="flex flex-col min-h-screen bg-gray-50">
+    <header className="bg-blue-600 text-white p-4 shadow-md">
+      <div className="flex justify-between items-center max-w-6xl mx-auto">
+        <h1 className="text-2xl font-bold">Scientific Lab Report Guide: MYP Criteria B</h1>
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🏆</span>
+          <span className="font-bold">{points} POINTS</span>
+        </div>
+      </div>
+    </header>
+    
+    {/* Badge Animation */}
+    {showBadgeAnimation && (
+      <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl transform animate-bounce text-center">
+          <div className="text-6xl mb-4">
+            {showBadgeAnimation === 'questionCrafter' && '🧠'}
+            {showBadgeAnimation === 'curieCommander' && '🎯'}
+            {showBadgeAnimation === 'variableVirtuoso' && '🧲'}
+            {showBadgeAnimation === 'methodMaster' && '🧪'}
+          </div>
+          <h3 className="text-xl font-bold text-blue-800 mb-2">
+            {showBadgeAnimation === 'questionCrafter' && 'Question Crafter'}
+            {showBadgeAnimation === 'curieCommander' && 'Curie Commander'}
+            {showBadgeAnimation === 'variableVirtuoso' && 'Variable Virtuoso'}
+            {showBadgeAnimation === 'methodMaster' && 'Method Master'}
+          </h3>
+          <p className="text-gray-600">Badge Earned! +25 points</p>
+        </div>
+      </div>
+    )}
+    
+    <div className="max-w-6xl mx-auto w-full flex-grow flex flex-col mt-4 px-4 gap-4">
+      {/* Horizontal Navigation */}
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="flex flex-col space-y-6">
+          {/* Horizontal Strand Navigation */}
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">Lab Report Progress</h2>
             <div className="flex items-center gap-2">
-              <span className="text-xl">🏆</span>
-              <span className="font-bold">{points} POINTS</span>
+              <span className="text-sm text-gray-600">Experiment: </span>
+              <span className="font-medium">{experimentData[experimentChoice].title}</span>
             </div>
           </div>
-        </header>
-        
-        {/* Badge Animation */}
-        {showBadgeAnimation && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl transform animate-bounce text-center">
-              <div className="text-6xl mb-4">
-                {showBadgeAnimation === 'questionCrafter' && '🧠'}
-                {showBadgeAnimation === 'curieCommander' && '🎯'}
-                {showBadgeAnimation === 'variableVirtuoso' && '🧲'}
-                {showBadgeAnimation === 'methodMaster' && '🧪'}
+          
+          <div className="flex justify-between gap-4">
+            {[1, 2, 3, 4].map((strand) => (
+              <button 
+                key={strand}
+                onClick={() => setCurrentStrand(strand)}
+                className={`flex-1 p-3 rounded-lg flex flex-col items-center justify-center ${currentStrand === strand ? 'bg-blue-100 text-blue-800 border-2 border-blue-500' : 'hover:bg-gray-100 border border-gray-200'}`}
+              >
+                <span className="text-xl mb-1">
+                  {strandStatus[strand-1] === 'completed' ? '✅' : strandStatus[strand-1] === 'in progress' ? '📝' : '📋'}
+                </span>
+                <span className="font-medium">
+                  {strand === 1 ? 'Research Question' : 
+                   strand === 2 ? 'Hypothesis' : 
+                   strand === 3 ? 'Variables' : 'Methodology'}
+                </span>
+                <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden mt-2">
+                  <div
+                    className="bg-blue-600 h-full"
+                    style={{ width: `${(strandProgress[strand-1] / 8) * 100}%` }}
+                  ></div>
+                </div>
+                <span className="text-xs font-medium mt-1">{strandProgress[strand-1]}/8</span>
+              </button>
+            ))}
+          </div>
+          
+          {/* Horizontal Badges */}
+          <div className="flex justify-between items-center">
+            <div className="flex gap-4">
+              <div className={`p-3 border rounded-lg flex flex-col items-center ${earnedBadges.questionCrafter ? 'border-green-500 bg-green-50' : 'border-gray-200 opacity-70'}`}>
+                <span className="text-xl">🧠</span>
+                <span className="text-xs mt-1">Question Crafter</span>
               </div>
-              <h3 className="text-xl font-bold text-blue-800 mb-2">
-                {showBadgeAnimation === 'questionCrafter' && 'Question Crafter'}
-                {showBadgeAnimation === 'curieCommander' && 'Curie Commander'}
-                {showBadgeAnimation === 'variableVirtuoso' && 'Variable Virtuoso'}
-                {showBadgeAnimation === 'methodMaster' && 'Method Master'}
+              <div className={`p-3 border rounded-lg flex flex-col items-center ${earnedBadges.curieCommander ? 'border-green-500 bg-green-50' : 'border-gray-200 opacity-70'}`}>
+                <span className="text-xl">🎯</span>
+                <span className="text-xs mt-1">Curie Commander</span>
+              </div>
+              <div className={`p-3 border rounded-lg flex flex-col items-center ${earnedBadges.variableVirtuoso ? 'border-green-500 bg-green-50' : 'border-gray-200 opacity-70'}`}>
+                <span className="text-xl">🧲</span>
+                <span className="text-xs mt-1">Variable Virtuoso</span>
+              </div>
+              <div className={`p-3 border rounded-lg flex flex-col items-center ${earnedBadges.methodMaster ? 'border-green-500 bg-green-50' : 'border-gray-200 opacity-70'}`}>
+                <span className="text-xl">🧪</span>
+                <span className="text-xs mt-1">Method Master</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-blue-100 p-2 rounded-lg">
+              <span className="text-xl">🏆</span>
+              <div>
+                <span className="text-xs text-blue-800">POINTS</span>
+                <p className="font-bold text-blue-800">{points}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <main className="flex-grow bg-white rounded-lg shadow-md p-6">
+        <div className="border-b pb-4 mb-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">
+              {currentStrand === 1 && 'Research Question'}
+              {currentStrand === 2 && 'Hypothesis'}
+              {currentStrand === 3 && 'Variables'}
+              {currentStrand === 4 && 'Methodology'}
+            </h2>
+          </div>
+          <p className="text-gray-600 mt-1">
+            {currentStrand === 1 && 'A good research question clearly identifies the independent and dependent variables, how they will be measured, and what relationship you\'re investigating.'}
+            {currentStrand === 2 && 'A good hypothesis predicts the relationship between your variables and explains why you expect this relationship based on scientific principles.'}
+            {currentStrand === 3 && 'Clearly identifying variables ensures your experiment is valid and reliable. This includes describing how you\'ll manipulate and measure variables.'}
+            {currentStrand === 4 && 'A strong methodology outlines all materials, safety precautions, and logical step-by-step procedures to answer your research question.'}
+          </p>
+        </div>
+        
+        <div className="mb-6">
+          <div className="flex border-b">
+            <button
+              onClick={() => setCurrentTab('guided')}
+              className={`py-2 px-4 font-medium ${currentTab === 'guided' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+            >
+              Guided Example
+            </button>
+            <button
+              onClick={() => setCurrentTab('your')}
+              className={`py-2 px-4 font-medium ${currentTab === 'your' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+            >
+              Your Experiment
+            </button>
+          </div>
+        </div>
+        
+        {/* Guided Example Tab */}
+        {currentTab === 'guided' && (
+          <div>
+            <div className="mb-6">
+              <h3 className="font-medium text-lg mb-4 flex items-center">
+                <span className="text-xl mr-2">📝</span>
+                {currentStrand === 1 && 'Research Question - Temperature Experiment (Example)'}
+                {currentStrand === 2 && 'Hypothesis - Temperature Experiment (Example)'}
+                {currentStrand === 3 && 'Variables - Temperature Experiment (Example)'}
+                {currentStrand === 4 && 'Methodology - Temperature Experiment (Example)'}
               </h3>
-              <p className="text-gray-600">Badge Earned! +25 points</p>
+              
+              <div className="space-y-4">
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => toggleLevelDetails('level3')}
+                    className="w-full flex justify-between items-center p-3 bg-gray-50 text-left"
+                  >
+                    <span className="font-medium">Level 3-4: Basic {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</span>
+                    <span>{showLevelDetails.level3 ? '🔽' : '▶️'}</span>
+                  </button>
+                  {showLevelDetails.level3 && (
+                    <div className="p-4 bg-white">
+                      <div className="mb-2 text-sm text-blue-800 font-medium">
+                        Key characteristics: Identifies main variables and their relationship
+                      </div>
+                      <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded border">
+                        {experimentData['temperature'][`strand${currentStrand}`].level4}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => toggleLevelDetails('level6')}
+                    className="w-full flex justify-between items-center p-3 bg-gray-50 text-left"
+                  >
+                    <span className="font-medium">Level 6: Detailed {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</span>
+                    <span>{showLevelDetails.level6 ? '🔽' : '▶️'}</span>
+                  </button>
+                  {showLevelDetails.level6 && (
+                    <div className="p-4 bg-white">
+                      <div className="mb-2 text-sm text-blue-800 font-medium">
+                        Improvement from Level 4: {currentStrand === 1 ? 'Addition of specific ranges, measurement methods, and control variables' : 
+                                                  currentStrand === 2 ? 'Inclusion of range values, measurement method, and control variables' : 
+                                                  currentStrand === 3 ? 'Specific range values for IV, methods to measure DV, and named control variables' : 
+                                                  'Logical method with clear steps and multiple trials'}
+                      </div>
+                      <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded border">
+                        {experimentData['temperature'][`strand${currentStrand}`].level6}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => toggleLevelDetails('level8')}
+                    className="w-full flex justify-between items-center p-3 bg-gray-50 text-left"
+                  >
+                    <span className="font-medium">Level 8: Comprehensive {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</span>
+                    <span>{showLevelDetails.level8 ? '🔽' : '▶️'}</span>
+                  </button>
+                  {showLevelDetails.level8 && (
+                    <div className="p-4 bg-white">
+                      <div className="mb-2 text-sm text-blue-800 font-medium">
+                        Improvement from Level 6: {currentStrand === 1 ? 'Addition of scientific background and principles (magnetic field strength, domains, inverse square law)' : 
+                                                 currentStrand === 2 ? 'Detailed scientific explanation with reference to physical principles' : 
+                                                 currentStrand === 3 ? 'Comprehensive descriptions of methods to control variables with specific techniques' : 
+                                                 'Detailed step-by-step instructions with quality control measures'}
+                      </div>
+                      <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded border">
+                        {experimentData['temperature'][`strand${currentStrand}`].level8}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
         
-        <div className="max-w-6xl mx-auto w-full flex-grow flex flex-col mt-4 px-4 gap-4">
-          {/* Horizontal Navigation */}
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <div className="flex flex-col space-y-6">
-              {/* Horizontal Strand Navigation */}
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">Lab Report Progress</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Experiment: </span>
-                  <span className="font-medium">{experimentData[experimentChoice].title}</span>
-                </div>
-              </div>
+        {/* Your Experiment Tab */}
+        {currentTab === 'your' && (
+          <div>
+            <div className="mb-6">
+              <h3 className="font-medium text-lg mb-4 flex items-center">
+                <span className="text-xl mr-2">📝</span>
+                Your {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}
+              </h3>
               
-              <div className="flex justify-between gap-4">
-                {[1, 2, 3, 4].map((strand) => (
-                  <button 
-                    key={strand}
-                    onClick={() => setCurrentStrand(strand)}
-                    className={`flex-1 p-3 rounded-lg flex flex-col items-center justify-center ${currentStrand === strand ? 'bg-blue-100 text-blue-800 border-2 border-blue-500' : 'hover:bg-gray-100 border border-gray-200'}`}
-                  >
-                    <span className="text-xl mb-1">
-                      {strandStatus[strand-1] === 'completed' ? '✅' : strandStatus[strand-1] === 'in progress' ? '📝' : '📋'}
-                    </span>
-                    <span className="font-medium">
-                      {strand === 1 ? 'Research Question' : 
-                       strand === 2 ? 'Hypothesis' : 
-                       strand === 3 ? 'Variables' : 'Methodology'}
-                    </span>
-                    <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden mt-2">
-                      <div
-                        className="bg-blue-600 h-full"
-                        style={{ width: `${(strandProgress[strand-1] / 8) * 100}%` }}
-                      ></div>
+              <div className="border border-gray-200 rounded-lg p-6">
+                <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                  {/* Keep your existing tips section */}
+                </div>
+                
+                <h4 className="font-medium mb-2">Write your Level 8 {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</h4>
+                <div className="relative">
+                  <textarea
+                    value={userInputs[`strand${currentStrand}`].level8}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      handleInputChange(`strand${currentStrand}`, 'level8', newValue);
+                      
+                      // Add real-time analysis for Strands 1, 2, and 3
+                      if (currentStrand === 1) {
+                        // Keyword analysis for specific terms
+                        const keywordAnalysis = analyzeStrand1(newValue);
+                        
+                        // Concept analysis for broader understanding
+                        const conceptAnalysis = analyzeConceptsCoverage(newValue, experimentChoice);
+                        
+                        // Combine both approaches - take the higher score
+                        const combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
+                        
+                        // Update progress in real-time
+                        const newProgress = [...strandProgress];
+                        newProgress[0] = combinedLevel;
+                        setStrandProgress(newProgress);
+                      }
+                      else if (currentStrand === 2) {
+                        // Keyword analysis for specific terms
+                        const keywordAnalysis = analyzeStrand2(newValue, experimentChoice);
+                        
+                        // Concept analysis for broader understanding
+                        const conceptAnalysis = analyzeHypothesisConcepts(newValue, experimentChoice);
+                        
+                        // Combine both approaches - take the higher score
+                        const combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
+                        
+                        // Update progress in real-time
+                        const newProgress = [...strandProgress];
+                        newProgress[1] = combinedLevel;
+                        setStrandProgress(newProgress);
+                      }
+                      else if (currentStrand === 3) {
+                        // Keyword analysis for specific terms
+                        const keywordAnalysis = analyzeStrand3(newValue, experimentChoice);
+                        
+                        // Concept analysis for broader understanding
+                        const conceptAnalysis = analyzeVariablesConcepts(newValue, experimentChoice);
+                        
+                        // Combine both approaches - take the higher score
+                        const combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
+                        
+                        // Update progress in real-time
+                        const newProgress = [...strandProgress];
+                        newProgress[2] = combinedLevel;
+                        setStrandProgress(newProgress);
+                      }
+                    }}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    rows="12"
+                    placeholder={`Enter your complete Level 8 ${currentStrand === 1 ? 'research question' : currentStrand === 2 ? 'hypothesis' : currentStrand === 3 ? 'variables' : 'methodology'} here. Refer to the example in the Guided Example tab.`}
+                  ></textarea>
+
+                  {/* Feedback box that appears below the textarea - only for Strand 1 */}
+                  {currentStrand === 1 && (
+                    <div className="mt-4 p-3 border rounded-lg bg-gray-50">
+                      <h5 className="font-medium text-gray-700 mb-2">Research Question Feedback</h5>
+                      
+                      {/* Progress bar */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="bg-blue-600 h-full transition-all duration-300"
+                            style={{ width: `${(strandProgress[0] / 8) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium">{strandProgress[0]}/8</span>
+                      </div>
+                      
+                      {/* Dynamic feedback emojis - only show if some progress */}
+                      {strandProgress[0] > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {strandProgress[0] >= 2 && <span className="text-xl">✓</span>}
+                          {strandProgress[0] >= 4 && <span className="text-xl">👍</span>}
+                          {strandProgress[0] >= 6 && <span className="text-xl">🌟</span>}
+                          {strandProgress[0] >= 8 && <span className="text-xl">🏆</span>}
+                        </div>
+                      )}
+                      
+                      {/* Detected keywords */}
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-700">Detected keywords:</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {analyzeStrand1(userInputs.strand1.level8).keywords.map((keyword, idx) => (
+                            <span 
+                              key={idx} 
+                              className={`inline-block px-2 py-1 rounded text-xs ${
+                                keyword.level === 'level8' ? 'bg-green-100 text-green-800 font-bold' : 
+                                keyword.level === 'level6' ? 'bg-blue-100 text-blue-800' : 
+                                'bg-yellow-100 text-yellow-800'
+                              }`}
+                            >
+                              {keyword.word}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Concept coverage feedback */}
+                      {userInputs.strand1.level8.length > 50 && (
+                        <div className="mt-3 border-t pt-3">
+                          <p className="text-sm font-medium text-gray-700">Concept Analysis:</p>
+                          
+                          {(() => {
+                            const conceptAnalysis = analyzeConceptsCoverage(userInputs.strand1.level8, experimentChoice);
+                            
+                            if (conceptAnalysis.concepts.length > 0) {
+                              return (
+                                <div className="mt-1">
+                                  <div className="flex flex-wrap gap-1 mb-2">
+                                    {conceptAnalysis.concepts.map((concept, idx) => (
+                                      <span 
+                                        key={idx}
+                                        className={`inline-block px-2 py-1 rounded text-xs ${
+                                          concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
+                                          'bg-blue-100 text-blue-800'
+                                        }`}
+                                      >
+                                        {concept.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs text-gray-600">
+                                    {conceptAnalysis.conceptCounts.level6 > 0 && 
+                                      `You've covered ${conceptAnalysis.conceptCounts.level6}/3 Level 6 concepts. `}
+                                    {conceptAnalysis.conceptCounts.level8 > 0 && 
+                                      `You've covered ${conceptAnalysis.conceptCounts.level8}/3 Level 8 concepts.`}
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return <p className="text-xs text-gray-500">Keep adding scientific concepts to improve your question</p>;
+                          })()}
+                        </div>
+                      )}
                     </div>
-                    <span className="text-xs font-medium mt-1">{strandProgress[strand-1]}/8</span>
-                  </button>
-                ))}
-              </div>
-              
-              {/* Horizontal Badges */}
-              <div className="flex justify-between items-center">
-                <div className="flex gap-4">
-                  <div className={`p-3 border rounded-lg flex flex-col items-center ${earnedBadges.questionCrafter ? 'border-green-500 bg-green-50' : 'border-gray-200 opacity-70'}`}>
-                    <span className="text-xl">🧠</span>
-                    <span className="text-xs mt-1">Question Crafter</span>
-                  </div>
-                  <div className={`p-3 border rounded-lg flex flex-col items-center ${earnedBadges.curieCommander ? 'border-green-500 bg-green-50' : 'border-gray-200 opacity-70'}`}>
-                    <span className="text-xl">🎯</span>
-                    <span className="text-xs mt-1">Curie Commander</span>
-                  </div>
-                  <div className={`p-3 border rounded-lg flex flex-col items-center ${earnedBadges.variableVirtuoso ? 'border-green-500 bg-green-50' : 'border-gray-200 opacity-70'}`}>
-                    <span className="text-xl">🧲</span>
-                    <span className="text-xs mt-1">Variable Virtuoso</span>
-                  </div>
-                  <div className={`p-3 border rounded-lg flex flex-col items-center ${earnedBadges.methodMaster ? 'border-green-500 bg-green-50' : 'border-gray-200 opacity-70'}`}>
-                    <span className="text-xl">🧪</span>
-                    <span className="text-xs mt-1">Method Master</span>
-                  </div>
+                  )}
+
+                  {/* Feedback box that appears below the textarea - only for Strand 2 */}
+                  {currentStrand === 2 && (
+                    <div className="mt-4 p-3 border rounded-lg bg-gray-50">
+                      <h5 className="font-medium text-gray-700 mb-2">Hypothesis Feedback</h5>
+                      
+                      {/* Progress bar */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="bg-blue-600 h-full transition-all duration-300"
+                            style={{ width: `${(strandProgress[1] / 8) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium">{strandProgress[1]}/8</span>
+                      </div>
+                      
+                      {/* Dynamic feedback emojis - only show if some progress */}
+                      {strandProgress[1] > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {strandProgress[1] >= 2 && <span className="text-xl">✓</span>}
+                          {strandProgress[1] >= 4 && <span className="text-xl">👍</span>}
+                          {strandProgress[1] >= 6 && <span className="text-xl">🌟</span>}
+                          {strandProgress[1] >= 8 && <span className="text-xl">🏆</span>}
+                        </div>
+                      )}
+                      
+                      {/* Detected keywords */}
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-700">Detected keywords:</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {analyzeStrand2(userInputs.strand2.level8, experimentChoice).keywords.map((keyword, idx) => (
+                            <span 
+                              key={idx} 
+                              className={`inline-block px-2 py-1 rounded text-xs ${
+                                keyword.level === 'level8' ? 'bg-green-100 text-green-800 font-bold' : 
+                                keyword.level === 'level6' ? 'bg-blue-100 text-blue-800' : 
+                                'bg-yellow-100 text-yellow-800'
+                              }`}
+                            >
+                              {keyword.word}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Concept coverage feedback */}
+                      {userInputs.strand2.level8.length > 50 && (
+                        <div className="mt-3 border-t pt-3">
+                          <p className="text-sm font-medium text-gray-700">Concept Analysis:</p>
+                          
+                          {(() => {
+                            const conceptAnalysis = analyzeHypothesisConcepts(userInputs.strand2.level8, experimentChoice);
+                            
+                            if (conceptAnalysis.concepts.length > 0) {
+                              return (
+                                <div className="mt-1">
+                                  <div className="flex flex-wrap gap-1 mb-2">
+                                    {conceptAnalysis.concepts.map((concept, idx) => (
+                                      <span 
+                                        key={idx}
+                                        className={`inline-block px-2 py-1 rounded text-xs ${
+                                          concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
+                                          concept.level === 6 ? 'bg-blue-100 text-blue-800' :
+                                          'bg-yellow-100 text-yellow-800'
+                                        }`}
+                                      >
+                                        {concept.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs text-gray-600">
+                                    {conceptAnalysis.conceptCounts.level4 > 0 && 
+                                      `You've covered ${conceptAnalysis.conceptCounts.level4}/2 Level 4 concepts. `}
+                                    {conceptAnalysis.conceptCounts.level6 > 0 && 
+                                      `You've covered ${conceptAnalysis.conceptCounts.level6}/3 Level 6 concepts. `}
+                                    {conceptAnalysis.conceptCounts.level8 > 0 && 
+                                      `You've covered ${conceptAnalysis.conceptCounts.level8}/4 Level 8 concepts.`}
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return <p className="text-xs text-gray-500">Start with an "If-Then" statement and add scientific reasoning to improve your hypothesis</p>;
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Feedback box that appears below the textarea - only for Strand 3 */}
+                  {currentStrand === 3 && (
+                    <div className="mt-4 p-3 border rounded-lg bg-gray-50">
+                      <h5 className="font-medium text-gray-700 mb-2">Variables Feedback</h5>
+                      
+                      {/* Progress bar */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="bg-blue-600 h-full transition-all duration-300"
+                            style={{ width: `${(strandProgress[2] / 8) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium">{strandProgress[2]}/8</span>
+                      </div>
+                      
+                      {/* Dynamic feedback emojis - only show if some progress */}
+                      {strandProgress[2] > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {strandProgress[2] >= 2 && <span className="text-xl">✓</span>}
+                          {strandProgress[2] >= 4 && <span className="text-xl">👍</span>}
+                          {strandProgress[2] >= 6 && <span className="text-xl">🌟</span>}
+                          {strandProgress[2] >= 8 && <span className="text-xl">🏆</span>}
+                        </div>
+                      )}
+                      
+                      {/* Detected keywords */}
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-700">Detected keywords:</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {analyzeStrand3(userInputs.strand3.level8, experimentChoice).keywords.map((keyword, idx) => (
+                            <span 
+                              key={idx} 
+                              className={`inline-block px-2 py-1 rounded text-xs ${
+                                keyword.level === 'level8' ? 'bg-green-100 text-green-800 font-bold' : 
+                                keyword.level === 'level6' ? 'bg-blue-100 text-blue-800' : 
+                                'bg-yellow-100 text-yellow-800'
+                              }`}
+                            >
+                              {keyword.word}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Concept coverage feedback */}
+                      {userInputs.strand3.level8.length > 50 && (
+                        <div className="mt-3 border-t pt-3">
+                          <p className="text-sm font-medium text-gray-700">Concept Analysis:</p>
+                          
+                          {(() => {
+                            const conceptAnalysis = analyzeVariablesConcepts(userInputs.strand3.level8, experimentChoice);
+                            
+                            if (conceptAnalysis.concepts.length > 0) {
+                              return (
+                                <div className="mt-1">
+                                  <div className="flex flex-wrap gap-1 mb-2">
+                                    {conceptAnalysis.concepts.map((concept, idx) => (
+                                      <span 
+                                        key={idx}
+                                        className={`inline-block px-2 py-1 rounded text-xs ${
+                                          concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
+                                          concept.level ===
+                                          concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
+                                          concept.level === 6 ? 'bg-blue-100 text-blue-800' :
+                                          'bg-yellow-100 text-yellow-800'
+                                        }`}
+                                      >
+                                        {concept.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs text-gray-600">
+                                    {conceptAnalysis.conceptCounts.level4 > 0 && 
+                                      `You've covered ${conceptAnalysis.conceptCounts.level4}/3 Level 4 concepts. `}
+                                    {conceptAnalysis.conceptCounts.level6 > 0 && 
+                                      `You've covered ${conceptAnalysis.conceptCounts.level6}/4 Level 6 concepts. `}
+                                    {conceptAnalysis.conceptCounts.level8 > 0 && 
+                                      `You've covered ${conceptAnalysis.conceptCounts.level8}/4 Level 8 concepts.`}
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return <p className="text-xs text-gray-500">Start by clearly identifying the IV, DV, and CVs and how they will be measured and controlled.</p>;
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Feedback box that appears below the textarea - only for Strand 4 */}
+                  {currentStrand === 4 && (
+                    <div className="mt-4 p-3 border rounded-lg bg-gray-50">
+                      <h5 className="font-medium text-gray-700 mb-2">Methodology Feedback</h5>
+                      
+                      {/* Progress bar */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="bg-blue-600 h-full transition-all duration-300"
+                            style={{ width: `${(strandProgress[3] / 8) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium">{strandProgress[3]}/8</span>
+                      </div>
+                      
+                      {/* Dynamic feedback emojis - only show if some progress */}
+                      {strandProgress[3] > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {strandProgress[3] >= 2 && <span className="text-xl">✓</span>}
+                          {strandProgress[3] >= 4 && <span className="text-xl">👍</span>}
+                          {strandProgress[3] >= 6 && <span className="text-xl">🌟</span>}
+                          {strandProgress[3] >= 8 && <span className="text-xl">🏆</span>}
+                        </div>
+                      )}
+                      
+                      {/* Simple feedback - this can be enhanced similar to other strands if needed */}
+                      <div className="mt-2 text-sm text-gray-700">
+                        <p className="mb-2">Your methodology should include:</p>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li className={strandProgress[3] >= 3 ? "text-green-600" : "text-gray-500"}>Required materials and equipment</li>
+                          <li className={strandProgress[3] >= 4 ? "text-green-600" : "text-gray-500"}>Safety precautions and hazards</li>
+                          <li className={strandProgress[3] >= 6 ? "text-green-600" : "text-gray-500"}>Logical step-by-step procedure</li>
+                          <li className={strandProgress[3] >= 7 ? "text-green-600" : "text-gray-500"}>Quality control measures</li>
+                          <li className={strandProgress[3] >= 8 ? "text-green-600" : "text-gray-500"}>Detailed setup and precise measurements</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 bg-blue-100 p-2 rounded-lg">
-                  <span className="text-xl">🏆</span>
-                  <div>
-                    <span className="text-xs text-blue-800">POINTS</span>
-                    <p className="font-bold text-blue-800">{points}</p>
-                  </div>
+                
+                <div className="mt-4 text-sm text-gray-600">
+                  <p>Refer to the grading rubric to ensure you include all necessary components for a Level 8 response.</p>
                 </div>
               </div>
             </div>
           </div>
-          
-          <main className="flex-grow bg-white rounded-lg shadow-md p-6">
-            <div className="border-b pb-4 mb-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">
-                  {currentStrand === 1 && 'Research Question'}
-                  {currentStrand === 2 && 'Hypothesis'}
-                  {currentStrand === 3 && 'Variables'}
-                  {currentStrand === 4 && 'Methodology'}
-                </h2>
-              </div>
-              <p className="text-gray-600 mt-1">
-                {currentStrand === 1 && 'A good research question clearly identifies the independent and dependent variables, how they will be measured, and what relationship you\'re investigating.'}
-                {currentStrand === 2 && 'A good hypothesis predicts the relationship between your variables and explains why you expect this relationship based on scientific principles.'}
-                {currentStrand === 3 && 'Clearly identifying variables ensures your experiment is valid and reliable. This includes describing how you\'ll manipulate and measure variables.'}
-                {currentStrand === 4 && 'A strong methodology outlines all materials, safety precautions, and logical step-by-step procedures to answer your research question.'}
-              </p>
-            </div>
-            
-            <div className="mb-6">
-              <div className="flex border-b">
-                <button
-                  onClick={() => setCurrentTab('guided')}
-                  className={`py-2 px-4 font-medium ${currentTab === 'guided' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
-                >
-                  Guided Example
-                </button>
-                <button
-                  onClick={() => setCurrentTab('your')}
-                  className={`py-2 px-4 font-medium ${currentTab === 'your' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
-                >
-                  Your Experiment
-                </button>
-              </div>
-            </div>
-            
-            {/* Guided Example Tab */}
-            {currentTab === 'guided' && (
-              <div>
-                <div className="mb-6">
-                  <h3 className="font-medium text-lg mb-4 flex items-center">
-                    <span className="text-xl mr-2">📝</span>
-                    {currentStrand === 1 && 'Research Question - Temperature Experiment (Example)'}
-                    {currentStrand === 2 && 'Hypothesis - Temperature Experiment (Example)'}
-                    {currentStrand === 3 && 'Variables - Temperature Experiment (Example)'}
-                    {currentStrand === 4 && 'Methodology - Temperature Experiment (Example)'}
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => toggleLevelDetails('level3')}
-                        className="w-full flex justify-between items-center p-3 bg-gray-50 text-left"
-                      >
-                        <span className="font-medium">Level 3-4: Basic {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</span>
-                        <span>{showLevelDetails.level3 ? '🔽' : '▶️'}</span>
-                      </button>
-                      {showLevelDetails.level3 && (
-                        <div className="p-4 bg-white">
-                          <div className="mb-2 text-sm text-blue-800 font-medium">
-                            Key characteristics: Identifies main variables and their relationship
-                          </div>
-                          <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded border">
-                            {experimentData['temperature'][`strand${currentStrand}`].level4}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => toggleLevelDetails('level6')}
-                        className="w-full flex justify-between items-center p-3 bg-gray-50 text-left"
-                      >
-                        <span className="font-medium">Level 6: Detailed {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</span>
-                        <span>{showLevelDetails.level6 ? '🔽' : '▶️'}</span>
-                      </button>
-                      {showLevelDetails.level6 && (
-                        <div className="p-4 bg-white">
-                          <div className="mb-2 text-sm text-blue-800 font-medium">
-                            Improvement from Level 4: {currentStrand === 1 ? 'Addition of specific ranges, measurement methods, and control variables' : 
-                                                      currentStrand === 2 ? 'Inclusion of range values, measurement method, and control variables' : 
-                                                      currentStrand === 3 ? 'Specific range values for IV, methods to measure DV, and named control variables' : 
-                                                      'Logical method with clear steps and multiple trials'}
-                          </div>
-                          <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded border">
-                            {experimentData['temperature'][`strand${currentStrand}`].level6}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => toggleLevelDetails('level8')}
-                        className="w-full flex justify-between items-center p-3 bg-gray-50 text-left"
-                      >
-                        <span className="font-medium">Level 8: Comprehensive {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</span>
-                        <span>{showLevelDetails.level8 ? '🔽' : '▶️'}</span>
-                      </button>
-                      {showLevelDetails.level8 && (
-                        <div className="p-4 bg-white">
-                          <div className="mb-2 text-sm text-blue-800 font-medium">
-                            Improvement from Level 6: {currentStrand === 1 ? 'Addition of scientific background and principles (magnetic field strength, domains, inverse square law)' : 
-                                                     currentStrand === 2 ? 'Detailed scientific explanation with reference to physical principles' : 
-                                                     currentStrand === 3 ? 'Comprehensive descriptions of methods to control variables with specific techniques' : 
-                                                     'Detailed step-by-step instructions with quality control measures'}
-                          </div>
-                          <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded border">
-                            {experimentData['temperature'][`strand${currentStrand}`].level8}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Your Experiment Tab */}
-            {/* Your Experiment Tab */}
-{currentTab === 'your' && (
-  <div>
-    <div className="mb-6">
-      <h3 className="font-medium text-lg mb-4 flex items-center">
-        <span className="text-xl mr-2">📝</span>
-        Your {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}
-      </h3>
-      
-      <div className="border border-gray-200 rounded-lg p-6">
-        <div className="bg-blue-50 p-4 rounded-lg mb-6">
-          {/* Keep your existing tips section */}
-        </div>
+        )}
         
-        <h4 className="font-medium mb-2">Write your Level 8 {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</h4>
-        <div className="relative">
-        <textarea
-          value={userInputs[`strand${currentStrand}`].level8}
-          onChange={(e) => {
-            const newValue = e.target.value;
-            handleInputChange(`strand${currentStrand}`, 'level8', newValue);
-            
-            // Add real-time analysis for both Strand 1 and Strand 2
-            if (currentStrand === 1) {
-              // Keyword analysis for specific terms
-              const keywordAnalysis = analyzeStrand1(newValue);
-              
-              // Concept analysis for broader understanding
-              const conceptAnalysis = analyzeConceptsCoverage(newValue, experimentChoice);
-              
-              // Combine both approaches - take the higher score
-              const combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
-              
-              // Update progress in real-time
-              const newProgress = [...strandProgress];
-              newProgress[0] = combinedLevel;
-              setStrandProgress(newProgress);
-            }
-            else if (currentStrand === 2) {
-              // Keyword analysis for specific terms
-              const keywordAnalysis = analyzeStrand2(newValue, experimentChoice);
-              
-              // Concept analysis for broader understanding
-              const conceptAnalysis = analyzeHypothesisConcepts(newValue, experimentChoice);
-              
-              // Combine both approaches - take the higher score
-              const combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
-              
-              // Update progress in real-time
-              const newProgress = [...strandProgress];
-              newProgress[1] = combinedLevel;
-              setStrandProgress(newProgress);
-            }
-          }}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          rows="12"
-          placeholder={`Enter your complete Level 8 ${currentStrand === 1 ? 'research question' : currentStrand === 2 ? 'hypothesis' : currentStrand === 3 ? 'variables' : 'methodology'} here. Refer to the example in the Guided Example tab.`}
-           ></textarea>
-          
-          {/* Feedback box that appears below the textarea - only for Strand 1 */}
-          {currentStrand === 1 && (
-            <div className="mt-4 p-3 border rounded-lg bg-gray-50">
-              <h5 className="font-medium text-gray-700 mb-2">Research Question Feedback</h5>
-              
-              {/* Progress bar */}
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="bg-blue-600 h-full transition-all duration-300"
-                    style={{ width: `${(strandProgress[0] / 8) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs font-medium">{strandProgress[0]}/8</span>
-              </div>
-              
-              {/* Dynamic feedback emojis - only show if some progress */}
-              {strandProgress[0] > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {strandProgress[0] >= 2 && <span className="text-xl">✓</span>}
-                  {strandProgress[0] >= 4 && <span className="text-xl">👍</span>}
-                  {strandProgress[0] >= 6 && <span className="text-xl">🌟</span>}
-                  {strandProgress[0] >= 8 && <span className="text-xl">🏆</span>}
-                </div>
-              )}
-              
-              {/* Detected keywords */}
-              <div className="mt-2">
-                <p className="text-sm font-medium text-gray-700">Detected keywords:</p>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {analyzeStrand1(userInputs.strand1.level8).keywords.map((keyword, idx) => (
-                    <span 
-                      key={idx} 
-                      className={`inline-block px-2 py-1 rounded text-xs ${
-                        keyword.level === 'level8' ? 'bg-green-100 text-green-800 font-bold' : 
-                        keyword.level === 'level6' ? 'bg-blue-100 text-blue-800' : 
-                        'bg-yellow-100 text-yellow-800'
-                      }`}
-                    >
-                      {keyword.word}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Concept coverage feedback */}
-              {userInputs.strand1.level8.length > 50 && (
-                <div className="mt-3 border-t pt-3">
-                  <p className="text-sm font-medium text-gray-700">Concept Analysis:</p>
-                  
-                  {(() => {
-                    const conceptAnalysis = analyzeConceptsCoverage(userInputs.strand1.level8, experimentChoice);
-                    
-                    if (conceptAnalysis.concepts.length > 0) {
-                      return (
-                        <div className="mt-1">
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {conceptAnalysis.concepts.map((concept, idx) => (
-                              <span 
-                                key={idx}
-                                className={`inline-block px-2 py-1 rounded text-xs ${
-                                  concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
-                                  'bg-blue-100 text-blue-800'
-                                }`}
-                              >
-                                {concept.name}
-                              </span>
-                            ))}
-                          </div>
-                          <p className="text-xs text-gray-600">
-                            {conceptAnalysis.conceptCounts.level6 > 0 && 
-                              `You've covered ${conceptAnalysis.conceptCounts.level6}/3 Level 6 concepts. `}
-                            {conceptAnalysis.conceptCounts.level8 > 0 && 
-                              `You've covered ${conceptAnalysis.conceptCounts.level8}/3 Level 8 concepts.`}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return <p className="text-xs text-gray-500">Keep adding scientific concepts to improve your question</p>;
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
-          {/* Feedback box that appears below the textarea - only for Strand 2 */}
-{currentStrand === 2 && (
-  <div className="mt-4 p-3 border rounded-lg bg-gray-50">
-    <h5 className="font-medium text-gray-700 mb-2">Hypothesis Feedback</h5>
-    
-    {/* Progress bar */}
-    <div className="flex items-center gap-2 mb-3">
-      <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className="bg-blue-600 h-full transition-all duration-300"
-          style={{ width: `${(strandProgress[1] / 8) * 100}%` }}
-        />
-      </div>
-      <span className="text-xs font-medium">{strandProgress[1]}/8</span>
-    </div>
-    
-    {/* Dynamic feedback emojis - only show if some progress */}
-    {strandProgress[1] > 0 && (
-      <div className="flex flex-wrap gap-2 mb-3">
-        {strandProgress[1] >= 2 && <span className="text-xl">✓</span>}
-        {strandProgress[1] >= 4 && <span className="text-xl">👍</span>}
-        {strandProgress[1] >= 6 && <span className="text-xl">🌟</span>}
-        {strandProgress[1] >= 8 && <span className="text-xl">🏆</span>}
-      </div>
-    )}
-    
-    {/* Detected keywords */}
-    <div className="mt-2">
-      <p className="text-sm font-medium text-gray-700">Detected keywords:</p>
-      <div className="mt-1 flex flex-wrap gap-1">
-        {analyzeStrand2(userInputs.strand2.level8, experimentChoice).keywords.map((keyword, idx) => (
-          <span 
-            key={idx} 
-            className={`inline-block px-2 py-1 rounded text-xs ${
-              keyword.level === 'level8' ? 'bg-green-100 text-green-800 font-bold' : 
-              keyword.level === 'level6' ? 'bg-blue-100 text-blue-800' : 
-              'bg-yellow-100 text-yellow-800'
-            }`}
+        <div className="flex justify-between mt-8">
+          <button
+            onClick={goToPreviousStrand}
+            disabled={currentStrand === 1}
+            className={`flex items-center px-4 py-2 rounded-lg ${currentStrand === 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
-            {keyword.word}
-          </span>
-        ))}
-      </div>
-    </div>
-    
-    {/* Concept coverage feedback */}
-    {userInputs.strand2.level8.length > 50 && (
-      <div className="mt-3 border-t pt-3">
-        <p className="text-sm font-medium text-gray-700">Concept Analysis:</p>
-        
-        {(() => {
-          const conceptAnalysis = analyzeHypothesisConcepts(userInputs.strand2.level8, experimentChoice);
+            <span className="mr-2">◀️</span>
+            Previous Strand
+          </button>
           
-          if (conceptAnalysis.concepts.length > 0) {
-            return (
-              <div className="mt-1">
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {conceptAnalysis.concepts.map((concept, idx) => (
-                    <span 
-                      key={idx}
-                      className={`inline-block px-2 py-1 rounded text-xs ${
-                        concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
-                        concept.level === 6 ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}
-                    >
-                      {concept.name}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-600">
-                  {conceptAnalysis.conceptCounts.level4 > 0 && 
-                    `You've covered ${conceptAnalysis.conceptCounts.level4}/2 Level 4 concepts. `}
-                  {conceptAnalysis.conceptCounts.level6 > 0 && 
-                    `You've covered ${conceptAnalysis.conceptCounts.level6}/3 Level 6 concepts. `}
-                  {conceptAnalysis.conceptCounts.level8 > 0 && 
-                    `You've covered ${conceptAnalysis.conceptCounts.level8}/4 Level 8 concepts.`}
-                </p>
-              </div>
-            );
-          }
-          return <p className="text-xs text-gray-500">Start with an "If-Then" statement and add scientific reasoning to improve your hypothesis</p>;
-        })()}
-      </div>
-    )}
-  </div>
-)}
+          <button
+            onClick={goToNextStrand}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            {currentStrand < 4 ? 'Next Strand' : 'Finish'}
+            <span className="ml-2">▶️</span>
+          </button>
         </div>
-        
-        <div className="mt-4 text-sm text-gray-600">
-          <p>Refer to the grading rubric to ensure you include all necessary components for a Level 8 response.</p>
-        </div>
-      </div>
+      </main>
     </div>
   </div>
-)}
-                        
-            <div className="flex justify-between mt-8">
-              <button
-                onClick={goToPreviousStrand}
-                disabled={currentStrand === 1}
-                className={`flex items-center px-4 py-2 rounded-lg ${currentStrand === 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-              >
-                <span className="mr-2">◀️</span>
-                Previous Strand
-              </button>
-              
-              <button
-                onClick={goToNextStrand}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                {currentStrand < 4 ? 'Next Strand' : 'Finish'}
-                <span className="ml-2">▶️</span>
-              </button>
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  };
+);
+};
 
-export default App
+export default App;
+
+
+
+
