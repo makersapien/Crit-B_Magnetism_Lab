@@ -35,7 +35,39 @@ const App = () => {
       'in progress', 'not started', 'not started', 'not started'
     ]);
     const [showBadgeAnimation, setShowBadgeAnimation] = useState(null);
-  
+    const goToPreviousStrand = () => {
+      if (currentStrand > 1) {
+        // Evaluate current strand before moving
+        evaluateStrand(currentStrand);
+        // Navigate to previous strand
+        setCurrentStrand(currentStrand - 1);
+      }
+    };
+    
+    const goToNextStrand = () => {
+      // Evaluate the current strand first
+      const currentLevel = evaluateStrand(currentStrand);
+      
+      if (currentStrand < 4) {
+        // If not at the last strand, move to next strand
+        setCurrentStrand(currentStrand + 1);
+      } else {
+        // If at the last strand (4), evaluate all strands and go to results
+        // We've already evaluated the current strand above
+        
+        // Mark all strands as completed if they have a level >= 3
+        const newStatus = [...strandStatus];
+        for (let i = 0; i < 4; i++) {
+          if (strandProgress[i] >= 3) {
+            newStatus[i] = 'completed';
+          }
+        }
+        setStrandStatus(newStatus);
+        
+        // Go to results screen
+        setScreen('results');
+      }
+    };
     // Update strand status when navigating
     useEffect(() => {
       const newStatus = [...strandStatus];
@@ -56,7 +88,352 @@ const App = () => {
         setPoints(prevPoints => prevPoints + 25);
       }
     };
-  
+    // Add this function to detect key concepts rather than matching exemplars
+    const analyzeConceptsCoverage = (text, experimentType) => {
+      if (!text || text.length < 20) return { score: 0, concepts: [] };
+      
+      const content = text.toLowerCase();
+      
+      // Define key scientific concepts that should be present in a quality response
+      // These are more flexible than exact keywords
+      const keyConcepts = {
+        distance: [
+          { name: "IV Range Specification", pattern: /(range|between).*(cm|centimeter|distance)/i, level: 6 },
+          { name: "Measurement Method", pattern: /(measure|count|paper clip|attract)/i, level: 6 },
+          { name: "Control Variables", pattern: /(control|constant|same|keep|maintained)/i, level: 6 },
+          { name: "Inverse Square Law", pattern: /(inverse square|proportional|diminish|weaken)/i, level: 8 },
+          { name: "Field Lines", pattern: /(field lines|magnetic field|flux|direction)/i, level: 8 },
+          { name: "Scientific Principle", pattern: /(law|theory|principle|relation)/i, level: 8 },
+        ],
+        magnets: [
+          { name: "IV Range Specification", pattern: /(range|between).*(1 to 5|number of magnet|stack)/i, level: 6 },
+          { name: "Measurement Method", pattern: /(measure|count|paper clip|attract)/i, level: 6 },
+          { name: "Control Variables", pattern: /(control|constant|same|keep|maintained)/i, level: 6 },
+          { name: "Field Addition", pattern: /(add|combined|alignment|stronger field)/i, level: 8 },
+          { name: "Magnetic Domains", pattern: /(domain|field|alignment|dipole)/i, level: 8 },
+          { name: "Scientific Principle", pattern: /(theory|principle|relation|constructive)/i, level: 8 },
+        ]
+      };
+      
+      // Get the right concept set for the experiment
+      const conceptSet = keyConcepts[experimentType] || keyConcepts.distance;
+      
+      // Check for each concept
+      const detectedConcepts = [];
+      let level6Count = 0;
+      let level8Count = 0;
+      
+      conceptSet.forEach(concept => {
+        if (concept.pattern.test(content)) {
+          detectedConcepts.push(concept);
+          if (concept.level === 6) level6Count++;
+          if (concept.level === 8) level8Count++;
+        }
+      });
+      
+      // Calculate a score based on concept coverage
+      let score = 0;
+      
+      // Level 3-4 basic elements (simple presence of a question)
+      if (content.length > 50 && /how|what|does|affect/i.test(content)) {
+        score = 3;
+      }
+      
+      // Level 6 elements (details, ranges, measures)
+      if (level6Count >= 2) score = 6;
+      
+      // Level 8 elements (scientific principles)
+      if (level6Count >= 2 && level8Count >= 2) score = 8;
+      
+      return { 
+        score, 
+        concepts: detectedConcepts,
+        conceptCounts: {
+          level6: level6Count,
+          level8: level8Count
+        }
+      };
+    };
+        // Add this right before or after your evaluateStrand function
+    const analyzeStrand1 = (text) => {
+      if (!text) return { score: 0, keywords: [] };
+      
+      // Convert text to lowercase for case-insensitive matching
+      const content = text.toLowerCase();
+      
+      // Define keywords relevant to Research Question quality levels
+      const keywordGroups = [
+        // Level 3-4 keywords
+        { 
+          words: ['how', 'what', 'does', 'affect', 'effect', 'impact', 'influence', 'relationship'],
+          level: 'level3',
+          weight: 1,
+          color: 'yellow' 
+        },
+        // Level 6 keywords
+        { 
+          words: ['range', 'between', 'measured', 'measuring', 'constant', 'control', 'variables'],
+          level: 'level6',
+          weight: 2,
+          color: 'blue'
+        },
+        // Level 8 keywords - experiment specific
+        { 
+          words: experimentChoice === 'distance' 
+            ? ['magnetic field', 'inverse square', 'field lines', 'proportional', 'law']
+            : experimentChoice === 'magnets' 
+              ? ['magnetic field', 'domains', 'alignment', 'field addition', 'combined']
+              : ['magnetic field', 'domains', 'alignment'],
+          level: 'level8',
+          weight: 3,
+          color: 'green'
+        }
+      ];
+      
+      // Match keywords in text
+      const matchedKeywords = [];
+      let score = 0;
+      
+      keywordGroups.forEach(group => {
+        group.words.forEach(word => {
+          if (content.includes(word.toLowerCase())) {
+            // If the keyword is found, add it to our matches
+            matchedKeywords.push({
+              word: word,
+              level: group.level,
+              weight: group.weight,
+              color: group.color
+            });
+            score += group.weight;
+          }
+        });
+      });
+      
+      // Consider text length and structure
+      if (text.length > 100) score += 1;
+      if (text.length > 200) score += 2;
+      
+      // Calculate approximate level based on score
+      const level = Math.min(8, Math.max(0, Math.floor(score / 3)));
+      
+      return { score, level, keywords: matchedKeywords };
+    };
+    // Analysis function for Strand 2 (Hypothesis)
+    const analyzeStrand2 = (text, experimentChoice) => {
+      if (!text) return { score: 0, keywords: [] };
+      
+      // Convert text to lowercase for case-insensitive matching
+      const content = text.toLowerCase();
+      
+      // Define keywords relevant to Hypothesis quality levels based on experiment type
+      const keywordGroups = [
+        // Level 3-4 keywords - basic hypothesis structure
+        { 
+          words: ['if', 'then', 'will', 'increase', 'decrease', 'affect', 'effect', 'because'],
+          level: 'level3',
+          weight: 1,
+          color: 'yellow' 
+        },
+        // Level 6 keywords - measurement methods and control variables
+        { 
+          words: ['range', 'between', 'measured', 'measuring', 'constant', 'control', 'variables', 'paper clip'],
+          level: 'level6',
+          weight: 2,
+          color: 'blue'
+        },
+        // Level 8 keywords - scientific reasoning - experiment specific
+        { 
+          words: experimentChoice === 'distance' 
+            ? ['inverse square', 'field lines', 'proportional', 'diminish', 'weaken', 'spread out', 'magnetic field strength', 'magnetism']
+            : experimentChoice === 'magnets' 
+              ? ['combined', 'alignment', 'stronger field', 'additive', 'cumulative', 'domains', 'magnetism', 'dipoles']
+              : ['thermal energy', 'vibration', 'domains', 'alignment', 'curie', 'temperature'],
+          level: 'level8',
+          weight: 3,
+          color: 'green'
+        }
+      ];
+      
+      // Match keywords in text
+      const matchedKeywords = [];
+      let score = 0;
+      
+      keywordGroups.forEach(group => {
+        group.words.forEach(word => {
+          if (content.includes(word.toLowerCase())) {
+            // If the keyword is found, add it to our matches
+            matchedKeywords.push({
+              word: word,
+              level: group.level,
+              weight: group.weight,
+              color: group.color
+            });
+            score += group.weight;
+          }
+        });
+      });
+      
+      // Consider text length and structure (longer hypotheses with scientific reasoning tend to be higher level)
+      if (text.length > 100) score += 1;
+      if (text.length > 200) score += 2;
+      
+      // Check for "if-then" structure (essential for a hypothesis)
+      const hasIfThenStructure = /(if|when|as).+(then|will)/i.test(content);
+      if (!hasIfThenStructure) {
+        score = Math.min(score, 2); // Cap score at level 2 if missing if-then structure
+      }
+      
+      // Check for scientific reasoning (required for level 8)
+      const hasReasoning = /(because|due to|reason|explains|this occurs|this happens|caused by)/i.test(content);
+      if (!hasReasoning && score > 15) {
+        score = 15; // Cap score if missing scientific reasoning explanation
+      }
+      
+      // Calculate approximate level based on score
+      const level = Math.min(8, Math.max(0, Math.floor(score / 3)));
+      
+      return { score, level, keywords: matchedKeywords };
+    };
+
+    // Concept coverage analysis for Strand 2 (Hypothesis)
+    const analyzeHypothesisConcepts = (text, experimentType) => {
+      if (!text || text.length < 20) return { score: 0, concepts: [] };
+      
+      const content = text.toLowerCase();
+      
+      // Define key concepts that should be present in a quality hypothesis
+      const keyConcepts = {
+        distance: [
+          // Level 3-4 concepts
+          { name: "If-Then Structure", pattern: /(if|when).+(then|will)/i, level: 4 },
+          { name: "Basic Relationship", pattern: /(increase|decrease|change|affect).+(strength|field)/i, level: 4 },
+          
+          // Level 6 concepts
+          { name: "IV Range Specification", pattern: /(range|between).*(cm|centimeter|distance)/i, level: 6 },
+          { name: "Measurement Method", pattern: /(measure|count|paper clip|attract)/i, level: 6 },
+          { name: "Control Variables", pattern: /(control|constant|same|keep|maintained)/i, level: 6 },
+          
+          // Level 8 concepts
+          { name: "Inverse Square Law", pattern: /(inverse square|proportion|1\/r²)/i, level: 8 },
+          { name: "Field Lines Spreading", pattern: /(spread|extend|diverge|field lines)/i, level: 8 },
+          { name: "Scientific Reasoning", pattern: /(because|due to|reason|explains|this occurs|this happens|caused by)/i, level: 8 },
+          { name: "Mathematical Relationship", pattern: /(proportional|inversely|square|equation|relationship)/i, level: 8 }
+        ],
+        magnets: [
+          // Level 3-4 concepts
+          { name: "If-Then Structure", pattern: /(if|when).+(then|will)/i, level: 4 },
+          { name: "Basic Relationship", pattern: /(increase|decrease|change|affect).+(strength|field)/i, level: 4 },
+          
+          // Level 6 concepts
+          { name: "IV Range Specification", pattern: /(range|between).*(1 to 5|number of magnet|stack)/i, level: 6 },
+          { name: "Measurement Method", pattern: /(measure|count|paper clip|attract)/i, level: 6 },
+          { name: "Control Variables", pattern: /(control|constant|same|keep|maintained)/i, level: 6 },
+          
+          // Level 8 concepts
+          { name: "Field Addition", pattern: /(add|combined|alignment|stronger field|superposition)/i, level: 8 },
+          { name: "Magnetic Domains", pattern: /(domain|alignment|dipole|cumulative)/i, level: 8 },
+          { name: "Scientific Reasoning", pattern: /(because|due to|reason|explains|this occurs|this happens|caused by)/i, level: 8 },
+          { name: "Proportional Relationship", pattern: /(proportional|linear|relation|additive)/i, level: 8 }
+        ],
+        temperature: [
+          // Level 3-4 concepts
+          { name: "If-Then Structure", pattern: /(if|when).+(then|will)/i, level: 4 },
+          { name: "Basic Relationship", pattern: /(increase|decrease|change|affect).+(strength|field)/i, level: 4 },
+          
+          // Level 6 concepts
+          { name: "IV Range Specification", pattern: /(range|between).*(°C|degree|temperature)/i, level: 6 },
+          { name: "Measurement Method", pattern: /(measure|count|paper clip|attract)/i, level: 6 },
+          { name: "Control Variables", pattern: /(control|constant|same|keep|maintained)/i, level: 6 },
+          
+          // Level 8 concepts
+          { name: "Thermal Effects", pattern: /(thermal|heat|vibration|energy|atom)/i, level: 8 },
+          { name: "Domain Disruption", pattern: /(domain|alignment|disrupt|disturb|disorder)/i, level: 8 },
+          { name: "Scientific Reasoning", pattern: /(because|due to|reason|explains|this occurs|this happens|caused by)/i, level: 8 },
+          { name: "Curie Point Reference", pattern: /(curie|critical|temperature|770|°C)/i, level: 8 }
+        ]
+      };
+      
+      // Get the right concept set for the experiment
+      const conceptSet = keyConcepts[experimentType] || keyConcepts.distance;
+      
+      // Check for each concept
+      const detectedConcepts = [];
+      let level4Count = 0;
+      let level6Count = 0;
+      let level8Count = 0;
+      
+      conceptSet.forEach(concept => {
+        if (concept.pattern.test(content)) {
+          detectedConcepts.push(concept);
+          if (concept.level === 4) level4Count++;
+          if (concept.level === 6) level6Count++;
+          if (concept.level === 8) level8Count++;
+        }
+      });
+      
+      // Calculate a score based on concept coverage
+      let score = 0;
+      
+      // Level 3-4 basic elements (if-then structure)
+      if (level4Count >= 1) {
+        score = 3;
+        if (level4Count >= 2) score = 4;
+      }
+      
+      // Level 6 elements (ranges, measurements, controls)
+      if (level4Count >= 2 && level6Count >= 1) score = 5;
+      if (level4Count >= 2 && level6Count >= 2) score = 6;
+      
+      // Level 8 elements (scientific reasoning)
+      if (level4Count >= 2 && level6Count >= 2 && level8Count >= 1) score = 7;
+      if (level4Count >= 2 && level6Count >= 2 && level8Count >= 2) score = 8;
+      
+      return { 
+        score, 
+        concepts: detectedConcepts,
+        conceptCounts: {
+          level4: level4Count,
+          level6: level6Count,
+          level8: level8Count
+        }
+      };
+    };
+
+   
+
+    // Code to be added to handleInputChange for Strand 2
+    // This should be integrated with your existing handleInputChange function
+
+    /*
+    const handleInputChange = (strand, level, value) => {
+      setUserInputs(prev => ({
+        ...prev,
+        [strand]: {
+          ...prev[strand],
+          [level]: value
+        }
+      }));
+
+      // Real-time analysis for Strand 2 (add this to your existing handleInputChange function)
+      if (strand === 'strand2' && level === 'level8') {
+        // Keyword analysis
+        const keywordAnalysis = analyzeStrand2(value, experimentChoice);
+        
+        // Concept analysis
+        const conceptAnalysis = analyzeHypothesisConcepts(value, experimentChoice);
+        
+        // Combine both approaches - take the higher score
+        const combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
+        
+        // Update progress in real-time
+        const newProgress = [...strandProgress];
+        newProgress[1] = combinedLevel; // Strand 2 is index 1
+        setStrandProgress(newProgress);
+      }
+    };
+    */
+    // Evaluate strand completion based on grading rubric
+    
     // Evaluate strand completion based on grading rubric
     const evaluateStrand = (strandNum) => {
       const strand = `strand${strandNum}`;
@@ -69,47 +446,97 @@ const App = () => {
       if (input.length < 20) {
         level = 0; // Not enough content
       } else {
-        // Check for Level 3-4 criteria
-        const hasBasicStructure = strandNum === 1 ? 
-                                 /how does.+affect/i.test(input) : // Basic research question
-                                 strandNum === 2 ? 
-                                 /if.+then/i.test(input) : // Basic hypothesis
-                                 strandNum === 3 ? 
-                                 /independent variable|dependent variable/i.test(input) : // Basic variables
-                                 /materials|method/i.test(input); // Basic methodology
-        
-        if (hasBasicStructure) level = 4;
-        
-        // Check for Level 5-6 criteria
-        const hasDetailedStructure = strandNum === 1 ? 
-                                    /range of.+affect.+measured by.+while keeping/i.test(input) : // Detailed RQ
-                                    strandNum === 2 ? 
-                                    /if.+in the range of.+then.+measured by.+while keeping/i.test(input) : // Detailed hypothesis
-                                    strandNum === 3 ? 
-                                    /range values.+method to measure.+control variables/i.test(input) : // Detailed variables
-                                    /steps|safety|trials/i.test(input); // Detailed methodology
-        
-        if (hasDetailedStructure) level = 6;
-        
-        // Check for Level 7-8 criteria
-        const hasComprehensiveStructure = strandNum === 1 ? 
-                                         /(inverse square law|magnetic field|domains).+range of.+measured by.+while keeping/i.test(input) : // Comprehensive RQ
-                                         strandNum === 2 ? 
-                                         /(domains|magnetic field|vibrate).+increases.+decreases.+because/i.test(input) : // Comprehensive hypothesis
-                                         strandNum === 3 ? 
-                                         /(precisely|specifically).+control.+constant.+verify/i.test(input) : // Comprehensive variables
-                                         /(step-by-step|precautions|quality control|reliability|multiple trials)/i.test(input); // Comprehensive methodology
-        
-        if (hasComprehensiveStructure) level = 8;
+        // Research Question (Strand 1)
+        if (strandNum === 1) {
+          // Basic level check (3-4)
+          if (/how.+affect|effect|impact|influence/i.test(input)) {
+            level = 4;
+            
+            // Level 6 check
+            if (/(range|between).+(affect|measure|constant|control)/i.test(input)) {
+              level = 6;
+              
+              // Level 8 check - more flexible criteria based on experiment
+              if (experimentChoice === 'distance' && 
+                  (/magnetic field|inverse square|field lines/i.test(input) && input.length > 150)) {
+                level = 8;
+              } else if (experimentChoice === 'magnets' && 
+                        (/magnetic field|domains|alignment|field addition/i.test(input) && input.length > 150)) {
+                level = 8;
+              }
+            }
+          }
+        } 
+        // Hypothesis (Strand 2)
+        else if (strandNum === 2) {
+          // Basic level check (3-4)
+          if (/(if|when|as).+(then|will)/i.test(input)) {
+            level = 4;
+            
+            // Level 6 check
+            if (/(range|between).+(measured|measure|constant|control)/i.test(input)) {
+              level = 6;
+              
+              // Level 8 check - more flexible criteria based on experiment
+              if (experimentChoice === 'distance' && 
+                  (/inverse square|proportion|field strength|diminish/i.test(input) && 
+                  /because|scientific|reason/i.test(input) && 
+                  input.length > 200)) {
+                level = 8;
+              } else if (experimentChoice === 'magnets' && 
+                        (/combined|alignment|strength increases|additive/i.test(input) && 
+                        /because|scientific|reason/i.test(input) && 
+                        input.length > 200)) {
+                level = 8;
+              }
+            }
+          }
+        }
+        // Variables (Strand 3) - Keeping original logic
+        else if (strandNum === 3) {
+          if (/independent variable|dependent variable/i.test(input)) {
+            level = 3;
+            
+            if (/control variables|method to measure/i.test(input)) {
+              level = 4;
+            }
+            
+            if (/range values.+method to measure.+control variables/i.test(input)) {
+              level = 6;
+            }
+            
+            if (/(precisely|specifically).+control.+constant.+verify/i.test(input)) {
+              level = 8;
+            }
+          }
+        }
+        // Methodology (Strand 4) - Keeping original logic
+        else if (strandNum === 4) {
+          if (/materials|method/i.test(input)) {
+            level = 3;
+            
+            if (/safety|equipment/i.test(input)) {
+              level = 4;
+            }
+            
+            if (/steps|logical|trials/i.test(input)) {
+              level = 6;
+            }
+            
+            if (/(step-by-step|precautions|quality control|reliability|multiple trials)/i.test(input)) {
+              level = 8;
+            }
+          }
+        }
       }
-      
+            
       // Update progress
       const newProgress = [...strandProgress];
       newProgress[strandNum - 1] = level;
       setStrandProgress(newProgress);
       
       // Award badges based on strand and level
-      if (strandNum === 1 && level >= 6) awardBadge('questionCrafter');
+      if (strandNum === 1 && level >= 8) awardBadge('questionCrafter'); // Changed from level 6 to level 8
       if (strandNum === 2 && level >= 8) awardBadge('curieCommander');
       if (strandNum === 3 && level >= 7) awardBadge('variableVirtuoso');
       if (strandNum === 4 && level >= 7) awardBadge('methodMaster');
@@ -122,23 +549,6 @@ const App = () => {
       return level;
     };
   
-    // Handle navigation between strands
-    const goToNextStrand = () => {
-      if (currentStrand < 4) {
-        evaluateStrand(currentStrand);
-        setCurrentStrand(currentStrand + 1);
-      } else {
-        evaluateStrand(currentStrand);
-        setScreen('results');
-      }
-    };
-  
-    const goToPreviousStrand = () => {
-      if (currentStrand > 1) {
-        setCurrentStrand(currentStrand - 1);
-      }
-    };
-  
     // Handle user input changes
     const handleInputChange = (strand, level, value) => {
       setUserInputs(prev => ({
@@ -148,6 +558,42 @@ const App = () => {
           [level]: value
         }
       }));
+
+      // Real-time analysis for Strand 1 and Strand 2
+      if ((strand === 'strand1' || strand === 'strand2') && level === 'level8') {
+        let combinedLevel = 0;
+        
+        if (strand === 'strand1') {
+          // Keyword analysis for specific terms
+          const keywordAnalysis = analyzeStrand1(value);
+          
+          // Concept analysis for broader understanding
+          const conceptAnalysis = analyzeConceptsCoverage(value, experimentChoice);
+          
+          // Combine both approaches - take the higher score
+          combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
+          
+          // Update progress in real-time
+          const newProgress = [...strandProgress];
+          newProgress[0] = combinedLevel;
+          setStrandProgress(newProgress);
+        } 
+        else if (strand === 'strand2') {
+          // Keyword analysis for specific terms
+          const keywordAnalysis = analyzeStrand2(value, experimentChoice);
+          
+          // Concept analysis for broader understanding
+          const conceptAnalysis = analyzeHypothesisConcepts(value, experimentChoice);
+          
+          // Combine both approaches - take the higher score
+          combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
+          
+          // Update progress in real-time
+          const newProgress = [...strandProgress];
+          newProgress[1] = combinedLevel;
+          setStrandProgress(newProgress);
+        }
+      }
     };
   
     // Toggle level details visibility
@@ -950,75 +1396,246 @@ const App = () => {
             )}
             
             {/* Your Experiment Tab */}
-            {currentTab === 'your' && (
-              <div>
-                <div className="mb-6">
-                  <h3 className="font-medium text-lg mb-4 flex items-center">
-                    <span className="text-xl mr-2">📝</span>
-                    Your {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}
-                  </h3>
-                  
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <div className="bg-blue-50 p-4 rounded-lg mb-6">
-                      <h4 className="text-blue-800 font-medium mb-2">Tips for Level 8 {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</h4>
-                      <ul className="list-disc pl-5 space-y-2 text-blue-800">
-                        {currentStrand === 1 && (
-                          <>
-                            <li>Specify your independent variable with exact range values (e.g., "in the range of 1 cm to 10 cm")</li>
-                            <li>Include your measurement method for the dependent variable</li>
-                            <li>List all control variables that will be kept constant</li>
-                            <li>Include scientific background information (inverse square law, magnetic domains, etc.)</li>
-                            <li><strong>Improvement from Level 6:</strong> Addition of scientific principles and theory</li>
-                          </>
-                        )}
-                        {currentStrand === 2 && (
-                          <>
-                            <li>State a direct cause-effect relationship between IV and DV</li>
-                            <li>Include specific range values for your IV</li>
-                            <li>Describe your measurement method and control variables</li>
-                            <li>Provide detailed scientific reasoning with reference to magnetic domains, principles of magnetism, etc.</li>
-                            <li><strong>Improvement from Level 6:</strong> Inclusion of comprehensive scientific explanation</li>
-                          </>
-                        )}
-                        {currentStrand === 3 && (
-                          <>
-                            <li>Describe your IV with precise range values and detailed manipulation method</li>
-                            <li>Explain your DV measurement technique in detail including trials</li>
-                            <li>Describe specifically how each control variable will be kept constant</li>
-                            <li>Include justification for your choices of variables and controls</li>
-                            <li><strong>Improvement from Level 6:</strong> More precise description of control methods and verification techniques</li>
-                          </>
-                        )}
-                        {currentStrand === 4 && (
-                          <>
-                            <li>Provide detailed step-by-step instructions with numbered steps</li>
-                            <li>Include precise setup information and diagrams</li>
-                            <li>Describe comprehensive safety precautions</li>
-                            <li>Specify quality control measures and data recording methods</li>
-                            <li>Include multiple trials and methods to ensure reliability</li>
-                            <li><strong>Improvement from Level 6:</strong> Addition of quality control, data organization, and reliability measures</li>
-                          </>
-                        )}
-                      </ul>
-                    </div>
-                    
-                    <h4 className="font-medium mb-2">Write your Level 8 {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</h4>
-                    <textarea
-                      value={userInputs[`strand${currentStrand}`].level8}
-                      onChange={(e) => handleInputChange(`strand${currentStrand}`, 'level8', e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      rows="12"
-                      placeholder={`Enter your complete Level 8 ${currentStrand === 1 ? 'research question' : currentStrand === 2 ? 'hypothesis' : currentStrand === 3 ? 'variables' : 'methodology'} here. Refer to the example in the Guided Example tab.`}
-                    ></textarea>
-                    
-                    <div className="mt-4 text-sm text-gray-600">
-                      <p>Refer to the grading rubric to ensure you include all necessary components for a Level 8 response.</p>
-                    </div>
-                  </div>
+            {/* Your Experiment Tab */}
+{currentTab === 'your' && (
+  <div>
+    <div className="mb-6">
+      <h3 className="font-medium text-lg mb-4 flex items-center">
+        <span className="text-xl mr-2">📝</span>
+        Your {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}
+      </h3>
+      
+      <div className="border border-gray-200 rounded-lg p-6">
+        <div className="bg-blue-50 p-4 rounded-lg mb-6">
+          {/* Keep your existing tips section */}
+        </div>
+        
+        <h4 className="font-medium mb-2">Write your Level 8 {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</h4>
+        <div className="relative">
+        <textarea
+          value={userInputs[`strand${currentStrand}`].level8}
+          onChange={(e) => {
+            const newValue = e.target.value;
+            handleInputChange(`strand${currentStrand}`, 'level8', newValue);
+            
+            // Add real-time analysis for both Strand 1 and Strand 2
+            if (currentStrand === 1) {
+              // Keyword analysis for specific terms
+              const keywordAnalysis = analyzeStrand1(newValue);
+              
+              // Concept analysis for broader understanding
+              const conceptAnalysis = analyzeConceptsCoverage(newValue, experimentChoice);
+              
+              // Combine both approaches - take the higher score
+              const combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
+              
+              // Update progress in real-time
+              const newProgress = [...strandProgress];
+              newProgress[0] = combinedLevel;
+              setStrandProgress(newProgress);
+            }
+            else if (currentStrand === 2) {
+              // Keyword analysis for specific terms
+              const keywordAnalysis = analyzeStrand2(newValue, experimentChoice);
+              
+              // Concept analysis for broader understanding
+              const conceptAnalysis = analyzeHypothesisConcepts(newValue, experimentChoice);
+              
+              // Combine both approaches - take the higher score
+              const combinedLevel = Math.max(keywordAnalysis.level, conceptAnalysis.score);
+              
+              // Update progress in real-time
+              const newProgress = [...strandProgress];
+              newProgress[1] = combinedLevel;
+              setStrandProgress(newProgress);
+            }
+          }}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+          rows="12"
+          placeholder={`Enter your complete Level 8 ${currentStrand === 1 ? 'research question' : currentStrand === 2 ? 'hypothesis' : currentStrand === 3 ? 'variables' : 'methodology'} here. Refer to the example in the Guided Example tab.`}
+           ></textarea>
+          
+          {/* Feedback box that appears below the textarea - only for Strand 1 */}
+          {currentStrand === 1 && (
+            <div className="mt-4 p-3 border rounded-lg bg-gray-50">
+              <h5 className="font-medium text-gray-700 mb-2">Research Question Feedback</h5>
+              
+              {/* Progress bar */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-full transition-all duration-300"
+                    style={{ width: `${(strandProgress[0] / 8) * 100}%` }}
+                  />
+                </div>
+                <span className="text-xs font-medium">{strandProgress[0]}/8</span>
+              </div>
+              
+              {/* Dynamic feedback emojis - only show if some progress */}
+              {strandProgress[0] > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {strandProgress[0] >= 2 && <span className="text-xl">✓</span>}
+                  {strandProgress[0] >= 4 && <span className="text-xl">👍</span>}
+                  {strandProgress[0] >= 6 && <span className="text-xl">🌟</span>}
+                  {strandProgress[0] >= 8 && <span className="text-xl">🏆</span>}
+                </div>
+              )}
+              
+              {/* Detected keywords */}
+              <div className="mt-2">
+                <p className="text-sm font-medium text-gray-700">Detected keywords:</p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {analyzeStrand1(userInputs.strand1.level8).keywords.map((keyword, idx) => (
+                    <span 
+                      key={idx} 
+                      className={`inline-block px-2 py-1 rounded text-xs ${
+                        keyword.level === 'level8' ? 'bg-green-100 text-green-800 font-bold' : 
+                        keyword.level === 'level6' ? 'bg-blue-100 text-blue-800' : 
+                        'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {keyword.word}
+                    </span>
+                  ))}
                 </div>
               </div>
-            )}
-            
+              
+              {/* Concept coverage feedback */}
+              {userInputs.strand1.level8.length > 50 && (
+                <div className="mt-3 border-t pt-3">
+                  <p className="text-sm font-medium text-gray-700">Concept Analysis:</p>
+                  
+                  {(() => {
+                    const conceptAnalysis = analyzeConceptsCoverage(userInputs.strand1.level8, experimentChoice);
+                    
+                    if (conceptAnalysis.concepts.length > 0) {
+                      return (
+                        <div className="mt-1">
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {conceptAnalysis.concepts.map((concept, idx) => (
+                              <span 
+                                key={idx}
+                                className={`inline-block px-2 py-1 rounded text-xs ${
+                                  concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
+                                  'bg-blue-100 text-blue-800'
+                                }`}
+                              >
+                                {concept.name}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-600">
+                            {conceptAnalysis.conceptCounts.level6 > 0 && 
+                              `You've covered ${conceptAnalysis.conceptCounts.level6}/3 Level 6 concepts. `}
+                            {conceptAnalysis.conceptCounts.level8 > 0 && 
+                              `You've covered ${conceptAnalysis.conceptCounts.level8}/3 Level 8 concepts.`}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return <p className="text-xs text-gray-500">Keep adding scientific concepts to improve your question</p>;
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
+          {/* Feedback box that appears below the textarea - only for Strand 2 */}
+{currentStrand === 2 && (
+  <div className="mt-4 p-3 border rounded-lg bg-gray-50">
+    <h5 className="font-medium text-gray-700 mb-2">Hypothesis Feedback</h5>
+    
+    {/* Progress bar */}
+    <div className="flex items-center gap-2 mb-3">
+      <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className="bg-blue-600 h-full transition-all duration-300"
+          style={{ width: `${(strandProgress[1] / 8) * 100}%` }}
+        />
+      </div>
+      <span className="text-xs font-medium">{strandProgress[1]}/8</span>
+    </div>
+    
+    {/* Dynamic feedback emojis - only show if some progress */}
+    {strandProgress[1] > 0 && (
+      <div className="flex flex-wrap gap-2 mb-3">
+        {strandProgress[1] >= 2 && <span className="text-xl">✓</span>}
+        {strandProgress[1] >= 4 && <span className="text-xl">👍</span>}
+        {strandProgress[1] >= 6 && <span className="text-xl">🌟</span>}
+        {strandProgress[1] >= 8 && <span className="text-xl">🏆</span>}
+      </div>
+    )}
+    
+    {/* Detected keywords */}
+    <div className="mt-2">
+      <p className="text-sm font-medium text-gray-700">Detected keywords:</p>
+      <div className="mt-1 flex flex-wrap gap-1">
+        {analyzeStrand2(userInputs.strand2.level8, experimentChoice).keywords.map((keyword, idx) => (
+          <span 
+            key={idx} 
+            className={`inline-block px-2 py-1 rounded text-xs ${
+              keyword.level === 'level8' ? 'bg-green-100 text-green-800 font-bold' : 
+              keyword.level === 'level6' ? 'bg-blue-100 text-blue-800' : 
+              'bg-yellow-100 text-yellow-800'
+            }`}
+          >
+            {keyword.word}
+          </span>
+        ))}
+      </div>
+    </div>
+    
+    {/* Concept coverage feedback */}
+    {userInputs.strand2.level8.length > 50 && (
+      <div className="mt-3 border-t pt-3">
+        <p className="text-sm font-medium text-gray-700">Concept Analysis:</p>
+        
+        {(() => {
+          const conceptAnalysis = analyzeHypothesisConcepts(userInputs.strand2.level8, experimentChoice);
+          
+          if (conceptAnalysis.concepts.length > 0) {
+            return (
+              <div className="mt-1">
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {conceptAnalysis.concepts.map((concept, idx) => (
+                    <span 
+                      key={idx}
+                      className={`inline-block px-2 py-1 rounded text-xs ${
+                        concept.level === 8 ? 'bg-green-100 text-green-800 font-bold' : 
+                        concept.level === 6 ? 'bg-blue-100 text-blue-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {concept.name}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-600">
+                  {conceptAnalysis.conceptCounts.level4 > 0 && 
+                    `You've covered ${conceptAnalysis.conceptCounts.level4}/2 Level 4 concepts. `}
+                  {conceptAnalysis.conceptCounts.level6 > 0 && 
+                    `You've covered ${conceptAnalysis.conceptCounts.level6}/3 Level 6 concepts. `}
+                  {conceptAnalysis.conceptCounts.level8 > 0 && 
+                    `You've covered ${conceptAnalysis.conceptCounts.level8}/4 Level 8 concepts.`}
+                </p>
+              </div>
+            );
+          }
+          return <p className="text-xs text-gray-500">Start with an "If-Then" statement and add scientific reasoning to improve your hypothesis</p>;
+        })()}
+      </div>
+    )}
+  </div>
+)}
+        </div>
+        
+        <div className="mt-4 text-sm text-gray-600">
+          <p>Refer to the grading rubric to ensure you include all necessary components for a Level 8 response.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+                        
             <div className="flex justify-between mt-8">
               <button
                 onClick={goToPreviousStrand}
