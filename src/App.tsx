@@ -1583,6 +1583,46 @@ return (
               <div className="border border-gray-200 rounded-lg p-6">
                 <div className="bg-blue-50 p-4 rounded-lg mb-6">
                   {/* Keep your existing tips section */}
+                  <h4 className="text-blue-800 font-medium mb-2">Tips for Level 8 {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</h4>
+                    <ul className="list-disc pl-5 space-y-2 text-blue-800">
+                      {currentStrand === 1 && (
+                        <>
+                          <li>Specify your independent variable with exact range values (e.g., "in the range of 1 cm to 10 cm")</li>
+                          <li>Include your measurement method for the dependent variable</li>
+                          <li>List all control variables that will be kept constant</li>
+                          <li>Include scientific background information (inverse square law, magnetic domains, etc.)</li>
+                          <li><strong>Improvement from Level 6:</strong> Addition of scientific principles and theory</li>
+                        </>
+                      )}
+                      {currentStrand === 2 && (
+                        <>
+                          <li>State a direct cause-effect relationship between IV and DV</li>
+                          <li>Include specific range values for your IV</li>
+                          <li>Describe your measurement method and control variables</li>
+                          <li>Provide detailed scientific reasoning with reference to magnetic domains, principles of magnetism, etc.</li>
+                          <li><strong>Improvement from Level 6:</strong> Inclusion of comprehensive scientific explanation</li>
+                        </>
+                      )}
+                      {currentStrand === 3 && (
+                        <>
+                          <li>Describe your IV with precise range values and detailed manipulation method</li>
+                          <li>Explain your DV measurement technique in detail including trials</li>
+                          <li>Describe specifically how each control variable will be kept constant</li>
+                          <li>Include justification for your choices of variables and controls</li>
+                          <li><strong>Improvement from Level 6:</strong> More precise description of control methods and verification techniques</li>
+                        </>
+                      )}
+                      {currentStrand === 4 && (
+                        <>
+                          <li>Provide detailed step-by-step instructions with numbered steps</li>
+                          <li>Include precise setup information and diagrams</li>
+                          <li>Describe comprehensive safety precautions</li>
+                          <li>Specify quality control measures and data recording methods</li>
+                          <li>Include multiple trials and methods to ensure reliability</li>
+                          <li><strong>Improvement from Level 6:</strong> Addition of quality control, data organization, and reliability measures</li>
+                        </>
+                      )}
+                    </ul>
                 </div>
                 
                 <h4 className="font-medium mb-2">Write your Level 8 {currentStrand === 1 ? 'Research Question' : currentStrand === 2 ? 'Hypothesis' : currentStrand === 3 ? 'Variables' : 'Methodology'}</h4>
